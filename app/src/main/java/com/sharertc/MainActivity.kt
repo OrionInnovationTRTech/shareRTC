@@ -32,7 +32,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val iceServers by lazy {
-        listOf(IceServer.builder("stun:stun2.1.google.com:19302").createIceServer())
+        listOf(
+            IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
