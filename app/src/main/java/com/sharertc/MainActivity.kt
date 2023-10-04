@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import org.json.JSONObject
 import org.webrtc.DataChannel
 import org.webrtc.IceCandidate
 import org.webrtc.MediaConstraints
@@ -37,6 +38,8 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private lateinit var peerConnection: PeerConnection
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -44,11 +47,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun init() {
-        val peerConnection = peerConnectionFactory.createPeerConnection(
+        peerConnection = peerConnectionFactory.createPeerConnection(
             iceServers,
             object : PeerConnection.Observer {
                 override fun onSignalingChange(p0: PeerConnection.SignalingState?) {
-
                     Log.d(tag, "onSignalingChange: ${p0.toString()}")
                 }
 
@@ -94,7 +96,10 @@ class MainActivity : AppCompatActivity() {
         peerConnection.createOffer(object : SdpObserver {
             override fun onCreateSuccess(sdp: SessionDescription?) {
                 Log.d(tag, "onCreateSuccess: ${sdp.toString()}")
-                sdp?.let { setUI(it) }
+                sdp?.let {
+                    setUI(it)
+                    setLocalSdp(it)
+                }
             }
 
             override fun onSetSuccess() {
@@ -132,6 +137,34 @@ class MainActivity : AppCompatActivity() {
         val sdpDescription = findViewById<TextView>(R.id.tvSdpDescription)
         sdpType.text = sdp.type.toString()
         sdpDescription.text = sdp.description
+    }
+
+    private fun setLocalSdp(sdp: SessionDescription) {
+        peerConnection.setLocalDescription(object : SdpObserver {
+            override fun onCreateSuccess(p0: SessionDescription?) {
+            }
+
+            override fun onSetSuccess() {
+                Log.d(tag, "onSetSuccess")
+                generateQRCode(sdp)
+            }
+
+            override fun onCreateFailure(p0: String?) {
+            }
+
+            override fun onSetFailure(p0: String?) {
+                Log.d(tag, "onSetFailure: ${p0.toString()}")
+            }
+        }, sdp)
+    }
+
+    private fun generateQRCode(sdp: SessionDescription) = runOnUiThread {
+        val json = JSONObject()
+        json.put("sdpType", sdp.type.canonicalForm())
+        json.put("sdpDescription", sdp.description)
+
+        val qRCodeData: String = json.toString()
+        // Bu noktadan sonra sdp bilgileri ile qr kod oluşturulabilir
     }
     
     companion object {
