@@ -6,7 +6,7 @@ import org.webrtc.PeerConnectionFactory
 
 class App: Application() {
 
-    val peerConnectionFactory by lazy {
+    val peerConnectionFactory: PeerConnectionFactory by lazy {
         PeerConnectionFactory.InitializationOptions
             .builder(applicationContext)
             .createInitializationOptions().also {

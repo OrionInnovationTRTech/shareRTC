@@ -23,7 +23,8 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
         binding.btnReceiver.setOnClickListener {
-
+            val intent = Intent(this, ReceiverActivity::class.java)
+            startActivity(intent)
         }
     }
 }
