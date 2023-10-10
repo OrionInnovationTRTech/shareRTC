@@ -13,12 +13,14 @@ import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
+import java.nio.ByteBuffer
 
 
 class ReceiverActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityReceiverBinding
     private lateinit var peerConnection: PeerConnection
+    private lateinit var dataChannel: DataChannel
     private val app get() = application as App
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,6 +75,31 @@ class ReceiverActivity : AppCompatActivity() {
                 }
             }
         ) ?: return
+
+        createDataChannel()
+    }
+
+    private fun createDataChannel() {
+        val dcInit = DataChannel.Init()
+        dataChannel = peerConnection.createDataChannel("dc", dcInit)
+        dataChannel.registerObserver(object : DataChannel.Observer {
+            override fun onBufferedAmountChange(p0: Long) {
+                Log.d(tag, "onBufferedAmountChange: $p0")
+            }
+
+            override fun onStateChange() {
+                Log.d(tag, "onStateChange")
+            }
+
+            override fun onMessage(buffer: DataChannel.Buffer) {
+                val data: ByteBuffer = buffer.data
+                val bytes = ByteArray(data.remaining())
+                data.get(bytes)
+                val message = String(bytes)
+                Log.d(tag, "onMessage: $message")
+                Toast.makeText(applicationContext, "onMessage: $message", Toast.LENGTH_LONG).show()
+            }
+        })
     }
 
     private fun init() {
