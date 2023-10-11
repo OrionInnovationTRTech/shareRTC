@@ -272,6 +272,7 @@ class ReceiverActivity : AppCompatActivity() {
         } else {
             super.onActivityResult(requestCode, resultCode, data)
         }
+    }
 
     @SuppressLint("SetTextI18n")
     private fun log(message: String) = runOnUiThread {

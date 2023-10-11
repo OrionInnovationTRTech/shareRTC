@@ -137,12 +137,12 @@ class SenderActivity : AppCompatActivity() {
 
     private fun init() {
         binding.btnStartConnection.setOnClickListener {
-            val answerSdpStr = binding.etAnswerSdp.text.toString()
+            /*val answerSdpStr = binding.etAnswerSdp.text.toString()
             if (answerSdpStr.isBlank()) {
                 Toast.makeText(this, "Öncelikle answer sdp json değerini girmelisiniz!", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            parseAnswerSdp(answerSdpStr)
+            parseAnswerSdp(answerSdpStr) */
         }
     }
 
