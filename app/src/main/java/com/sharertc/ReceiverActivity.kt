@@ -1,18 +1,16 @@
 package com.sharertc
 
 import android.Manifest
-import android.content.Intent
-import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
-import android.content.res.Configuration
-
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.zxing.WriterException
 import com.google.zxing.integration.android.IntentIntegrator
 import com.google.zxing.integration.android.IntentResult
 import com.sharertc.databinding.ActivityReceiverBinding
@@ -31,24 +29,17 @@ class ReceiverActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityReceiverBinding
     private lateinit var peerConnection: PeerConnection
-
+    private lateinit var dataChannel: DataChannel
 
     private val REQUEST_CODE_PERMISSIONS = 101
     private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-
-    private lateinit var dataChannel: DataChannel
-
     private val app get() = application as App
+    private var messageCounter: Int = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityReceiverBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        if (allPermissionsGranted()) {
-            startQRScanner()
-        } else {
-            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
-        }
 
         initPeerConnection()
         init()
@@ -61,12 +52,8 @@ class ReceiverActivity : AppCompatActivity() {
     private fun startQRScanner() {
         val integrator = IntentIntegrator(this)
         integrator.setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
-        integrator.setPrompt("QR kodunu tarayın")
+        integrator.setPrompt("Scan Offer Sdp QR")
         integrator.setCameraId(0)
-        val orientation = resources.configuration.orientation
-        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
         integrator.initiateScan()
     }
 
@@ -78,8 +65,13 @@ class ReceiverActivity : AppCompatActivity() {
                     log("PeerConnection.Observer:onSignalingChange: ${p0.toString()}")
                 }
 
-                override fun onIceConnectionChange(p0: PeerConnection.IceConnectionState?) {
-                    log("PeerConnection.Observer:onIceConnectionChange: ${p0.toString()}")
+                override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
+                    runOnUiThread {
+                        val isEnabled = state == PeerConnection.IceConnectionState.CONNECTED ||
+                                state == PeerConnection.IceConnectionState.COMPLETED
+                        binding.btnSendData.isEnabled = isEnabled
+                    }
+                    log("PeerConnection.Observer:onIceConnectionChange: ${state.toString()}")
                 }
 
                 override fun onIceConnectionReceivingChange(p0: Boolean) {
@@ -110,8 +102,9 @@ class ReceiverActivity : AppCompatActivity() {
                     log("PeerConnection.Observer:onRemoveStream: ${p0.toString()}")
                 }
 
-                override fun onDataChannel(p0: DataChannel?) {
-                    log("PeerConnection.Observer:onDataChannel: ${p0.toString()}")
+                override fun onDataChannel(dataChannel: DataChannel) {
+                    observeDataChannel(dataChannel)
+                    log("PeerConnection.Observer:onDataChannel: $dataChannel")
                 }
 
                 override fun onRenegotiationNeeded() {
@@ -119,13 +112,10 @@ class ReceiverActivity : AppCompatActivity() {
                 }
             }
         ) ?: return
-
-        createDataChannel()
     }
 
-    private fun createDataChannel() {
-        val dcInit = DataChannel.Init()
-        dataChannel = peerConnection.createDataChannel("dc", dcInit)
+    private fun observeDataChannel(dataChannel: DataChannel) {
+        this.dataChannel = dataChannel
         dataChannel.registerObserver(object : DataChannel.Observer {
             override fun onBufferedAmountChange(p0: Long) {
                 log("DataChannel.Observer:onBufferedAmountChange: $p0")
@@ -155,7 +145,16 @@ class ReceiverActivity : AppCompatActivity() {
             }
             parseOfferSdp(offerSdpStr)
         }
-        binding.tvAnswerSdpJson.setOnKeyListener { _, _, _ -> true }
+        binding.btnScanOfferSdpQr.setOnClickListener {
+            if (allPermissionsGranted()) {
+                startQRScanner()
+            } else {
+                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+            }
+        }
+        binding.btnSendData.setOnClickListener {
+            sendMessage("Hi, new value ${++messageCounter}")
+        }
     }
 
     private fun parseOfferSdp(offerSdpStr: String) {
@@ -207,7 +206,6 @@ class ReceiverActivity : AppCompatActivity() {
 
                     override fun onSetSuccess() {
                         log("setLocalDescription:onSetSuccess")
-                        sendAnswerSdp(answerSdp)
                     }
 
                     override fun onCreateFailure(p0: String?) {
@@ -237,8 +235,14 @@ class ReceiverActivity : AppCompatActivity() {
         answerJson.put("sdpDescription", answerSdp.description)
         val answerData = answerJson.toString()
         binding.tvAnswerSdpJson.text = answerData
-    }
 
+        try {
+            val bitmap = app.generateQRCode(answerData)
+            binding.ivAnswerSdpQr.setImageBitmap(bitmap)
+        } catch (e: WriterException) {
+            e.printStackTrace()
+        }
+    }
 
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<String>, grantResults: IntArray
@@ -266,12 +270,19 @@ class ReceiverActivity : AppCompatActivity() {
             if (result.contents == null) {
                 Toast.makeText(this, "QR kod bulunamadı", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "QR Kod: ${result.contents}", Toast.LENGTH_SHORT).show()
-                var qrResult = result.contents
+                //Toast.makeText(this, "QR Kod: ${result.contents}", Toast.LENGTH_SHORT).show()
+                val qrResult = result.contents
+                binding.etOfferSdp.setText(qrResult)
             }
         } else {
             super.onActivityResult(requestCode, resultCode, data)
         }
+    }
+
+    private fun sendMessage(message: String) {
+        val buffer = ByteBuffer.wrap(message.toByteArray())
+        dataChannel.send(DataChannel.Buffer(buffer, false))
+        log("sendMessage:message: $message")
     }
 
     @SuppressLint("SetTextI18n")

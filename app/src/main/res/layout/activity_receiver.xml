@@ -12,6 +12,12 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <Button
+            android:id="@+id/btnScanOfferSdpQr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Scan Offer Sdp QR"/>
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilOfferSdp"
             android:layout_width="match_parent"
@@ -38,6 +44,14 @@
             android:text="Generate Answer Sdp"
             android:layout_marginTop="8dp" />
 
+        <ImageView
+            android:id="@+id/ivAnswerSdpQr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            tools:srcCompat="@tools:sample/avatars"
+            tools:ignore="ContentDescription" />
+
         <TextView
             android:id="@+id/tvAnswerSdpJson"
             android:layout_width="match_parent"
@@ -45,10 +59,19 @@
             android:textIsSelectable="true"
             android:selectAllOnFocus="true" />
 
+        <Button
+            android:id="@+id/btnSendData"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Send Data"
+            android:enabled="false"
+            android:layout_marginBottom="8dp"/>
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Logs"
+            android:layout_marginTop="8dp"
             android:layout_marginBottom="16dp"/>
 
         <TextView
