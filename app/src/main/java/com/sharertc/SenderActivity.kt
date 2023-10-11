@@ -1,10 +1,14 @@
 package com.sharertc
 
+import android.graphics.Bitmap
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.MultiFormatWriter
+import com.google.zxing.WriterException
 import com.sharertc.databinding.ActivitySenderBinding
 import org.json.JSONObject
 import org.webrtc.DataChannel
@@ -214,6 +218,31 @@ class SenderActivity : AppCompatActivity() {
         val qRCodeData: String = json.toString()
         binding.tvOfferSdpJson.text = qRCodeData
         // Bu noktadan sonra sdp bilgileri ile qr kod oluşturulabilir
+
+        try {
+            val bitmap = generateQRCode(qRCodeData, 300, 300)
+            binding.imageView.setImageBitmap(bitmap)
+        } catch (e: WriterException) {
+            e.printStackTrace()
+        }
+    }
+
+    fun generateQRCode(text: String, width: Int, height: Int): Bitmap {
+        val multiFormatWriter = MultiFormatWriter()
+        val bitMatrix = multiFormatWriter.encode(text, BarcodeFormat.QR_CODE, width, height)
+
+        // BitMatrix'i Bitmap'e dönüştürme
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+        for (x in 0 until width) {
+            for (y in 0 until height) {
+                bitmap.setPixel(
+                    x,
+                    y,
+                    if (bitMatrix[x, y]) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
+                )
+            }
+        }
+        return bitmap
     }
 
     @SuppressLint("SetTextI18n")
