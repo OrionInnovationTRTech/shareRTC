@@ -1,5 +1,6 @@
 package com.sharertc
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -35,71 +36,74 @@ class SenderActivity : AppCompatActivity() {
             app.iceServers,
             object : PeerConnection.Observer {
                 override fun onSignalingChange(p0: PeerConnection.SignalingState?) {
-                    Log.d(tag, "onSignalingChange: ${p0.toString()}")
+                    log("PeerConnection.Observer:onSignalingChange: ${p0.toString()}")
                 }
 
                 override fun onIceConnectionChange(p0: PeerConnection.IceConnectionState?) {
-                    Log.d(tag, "onIceConnectionChange: ${p0.toString()}")
+                    log("PeerConnection.Observer:onIceConnectionChange: ${p0.toString()}")
                 }
 
                 override fun onIceConnectionReceivingChange(p0: Boolean) {
-                    Log.d(tag, "onIceConnectionReceivingChange: $p0")
+                    log(":PeerConnection.Observer:onIceConnectionReceivingChange: $p0")
                 }
 
                 override fun onIceGatheringChange(p0: PeerConnection.IceGatheringState?) {
-                    Log.d(tag, "onIceGatheringChange: ${p0.toString()}")
+                    generateQRCode(peerConnection.localDescription)
+                    log("PeerConnection.Observer:onIceGatheringChange: ${p0.toString()}")
                 }
 
-                override fun onIceCandidate(p0: IceCandidate?) {
-                    Log.d(tag, "onIceCandidate: ${p0.toString()}")
+                override fun onIceCandidate(iceCandidate: IceCandidate) {
+                    if (iceCandidate.serverUrl.contains("google.com")) {
+                        generateQRCode(peerConnection.localDescription)
+                    }
+                    log("PeerConnection.Observer:onIceCandidate: $iceCandidate")
                 }
 
                 override fun onIceCandidatesRemoved(p0: Array<out IceCandidate>?) {
-                    Log.d(tag, "onIceCandidatesRemoved: ${p0.toString()}")
+                    log("PeerConnection.Observer:onIceCandidatesRemoved: ${p0.toString()}")
                 }
 
                 override fun onAddStream(p0: MediaStream?) {
-                    Log.d(tag, "onAddStream: ${p0.toString()}")
+                    log("PeerConnection.Observer:onAddStream: ${p0.toString()}")
                 }
 
                 override fun onRemoveStream(p0: MediaStream?) {
-                    Log.d(tag, "onRemoveStream: ${p0.toString()}")
+                    log("PeerConnection.Observer:onRemoveStream: ${p0.toString()}")
                 }
 
                 override fun onDataChannel(p0: DataChannel?) {
-                    Log.d(tag, "onDataChannel: ${p0.toString()}")
+                    log("PeerConnection.Observer:onDataChannel: ${p0.toString()}")
                 }
 
                 override fun onRenegotiationNeeded() {
-                    Log.d(tag, "onRenegotiationNeeded")
+                    log("PeerConnection.Observer:onRenegotiationNeeded")
+                    createOffer()
                 }
-
             }
         ) ?: return
 
         createDataChannel()
-        createOffer()
     }
 
     private fun createOffer() {
         peerConnection.createOffer(object : SdpObserver {
             override fun onCreateSuccess(sdp: SessionDescription?) {
-                Log.d(tag, "onCreateSuccess: ${sdp.toString()}")
+                log("createOffer:onCreateSuccess")
                 sdp?.let {
                     setLocalSdp(it)
                 }
             }
 
             override fun onSetSuccess() {
-                Log.d(tag, "onSetSuccess")
+                log("createOffer:onSetSuccess")
             }
 
             override fun onCreateFailure(error: String?) {
-                Log.d(tag, "onCreateFailure: ${error.toString()}")
+                log("createOffer:onCreateFailure: ${error.toString()}")
             }
 
             override fun onSetFailure(p0: String?) {
-                Log.d(tag, "onSetFailure: ${p0.toString()}")
+                log("createOffer:onSetFailure: ${p0.toString()}")
             }
         }, MediaConstraints())
     }
@@ -109,11 +113,12 @@ class SenderActivity : AppCompatActivity() {
         dataChannel = peerConnection.createDataChannel("dc", dcInit)
         dataChannel.registerObserver(object : DataChannel.Observer {
             override fun onBufferedAmountChange(p0: Long) {
-                Log.d(tag, "onBufferedAmountChange: $p0")
+                log("DataChannel.Observer:onBufferedAmountChange: $p0")
             }
 
             override fun onStateChange() {
-                Log.d(tag, "onStateChange")
+                val state = dataChannel.state()
+                log("DataChannel.Observer:onStateChange -> state: $state")
             }
 
             override fun onMessage(buffer: DataChannel.Buffer) {
@@ -121,7 +126,7 @@ class SenderActivity : AppCompatActivity() {
                 val bytes = ByteArray(data.remaining())
                 data.get(bytes)
                 val message = String(bytes)
-                Log.d(tag, "onMessage: $message")
+                log("DataChannel.Observer:onMessage: $message")
             }
         })
     }
@@ -163,14 +168,15 @@ class SenderActivity : AppCompatActivity() {
             }
 
             override fun onSetSuccess() {
-                sendMessage("Selam ben Berivan!")
+                log("setRemoteDescription:onSetSuccess")
+                //sendMessage("Selam ben Berivan!")
             }
 
             override fun onCreateFailure(p0: String?) {
             }
 
             override fun onSetFailure(p0: String?) {
-                Log.d(tag, "onSetFailure: ${p0.toString()}")
+                log("setRemoteDescription:onSetFailure: ${p0.toString()}")
             }
         }, answerSdp)
     }
@@ -178,6 +184,7 @@ class SenderActivity : AppCompatActivity() {
     private fun sendMessage(message: String) {
         val buffer = ByteBuffer.wrap(message.toByteArray())
         dataChannel.send(DataChannel.Buffer(buffer, false))
+        log("sendMessage:message: $message")
     }
 
     private fun setLocalSdp(sdp: SessionDescription) {
@@ -186,7 +193,7 @@ class SenderActivity : AppCompatActivity() {
             }
 
             override fun onSetSuccess() {
-                Log.d(tag, "onSetSuccess")
+                log("setLocalDescription:onSetSuccess")
                 generateQRCode(sdp)
             }
 
@@ -194,7 +201,7 @@ class SenderActivity : AppCompatActivity() {
             }
 
             override fun onSetFailure(p0: String?) {
-                Log.d(tag, "onSetFailure: ${p0.toString()}")
+                log("setLocalDescription:onSetFailure: ${p0.toString()}")
             }
         }, sdp)
     }
@@ -205,11 +212,17 @@ class SenderActivity : AppCompatActivity() {
         json.put("sdpDescription", sdp.description)
 
         val qRCodeData: String = json.toString()
-        binding.tvSdpJson.text = qRCodeData
+        binding.tvOfferSdpJson.text = qRCodeData
         // Bu noktadan sonra sdp bilgileri ile qr kod oluşturulabilir
     }
 
+    @SuppressLint("SetTextI18n")
+    private fun log(message: String) = runOnUiThread {
+        Log.d(tag, message)
+        binding.etLogs.text = "--$message\n${binding.etLogs.text}"
+    }
+
     companion object {
-        private const val tag = "SenderActivity"
+        private const val tag = "ShareRtcLogging"
     }
 }
