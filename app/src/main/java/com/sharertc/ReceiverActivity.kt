@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -32,6 +33,8 @@ class ReceiverActivity : AppCompatActivity() {
     private lateinit var dataChannel: DataChannel
 
     private val REQUEST_CODE_PERMISSIONS = 101
+    private val READ_EXTERNAL_STORAGE_PERMISSION_CODE = 1
+    private val PICK_IMAGE_REQUEST = 2
     private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     private val app get() = application as App
     private var messageCounter: Int = 0
@@ -154,6 +157,16 @@ class ReceiverActivity : AppCompatActivity() {
         }
         binding.btnSendData.setOnClickListener {
             sendMessage("Hi, new value ${++messageCounter}")
+            initiatePickImage()
+        }
+    }
+
+    fun initiatePickImage() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), READ_EXTERNAL_STORAGE_PERMISSION_CODE)
+        } else {
+            // İzin zaten verildi, galeriye erişebilirsiniz.
+            openGallery()
         }
     }
 
@@ -259,11 +272,33 @@ class ReceiverActivity : AppCompatActivity() {
                 ).show()
                 finish()
             }
+
+            if (requestCode == READ_EXTERNAL_STORAGE_PERMISSION_CODE) {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // İzin verildi, galeriye erişebilirsiniz.
+                    openGallery()
+                } else {
+                    // İzin reddedildi. Kullanıcıya tekrar izin isteği gösterebilirsiniz.
+                }
+            }
         }
+    }
+
+    fun openGallery() {
+        val intent = Intent(Intent.ACTION_PICK)
+        intent.type = "image/*"
+        startActivityForResult(intent, PICK_IMAGE_REQUEST)
     }
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK) {
+            val selectedImageUri: Uri? = data?.data
+
+            // Seçilen fotoğrafın URI'sini kullanarak işlemlerinizi gerçekleştirebilirsiniz.
+            // Örneğin, fotoğrafı göstermek veya kaydetmek için.
+        }
         val result: IntentResult? =
             IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
         if (result != null) {
