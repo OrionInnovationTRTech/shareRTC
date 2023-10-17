@@ -4,9 +4,13 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -37,12 +41,36 @@ class SenderActivity : AppCompatActivity() {
 
     private var messageCounter: Int = 0
 
+    private val pickMultipleMedia =
+        registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
+            uris.forEach { uri ->
+                val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                contentResolver.takePersistableUriPermission(uri, flag)
+
+                contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    cursor.moveToFirst()
+                    val name = cursor.getString(nameIndex)
+                    val size = cursor.getLong(sizeIndex)
+                    handleSelectedFile(uri, name, size)
+                }
+            }
+            if (uris.isEmpty()) {
+                Toast.makeText(this, "No media selected", Toast.LENGTH_SHORT).show()
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySenderBinding.inflate(layoutInflater)
         setContentView(binding.root)
         initPeerConnection()
         init()
+    }
+
+    private fun handleSelectedFile(uri: Uri, name: String, size: Long) {
+        Log.d("SelectedFile", "Uri: $uri, name: $name, size: $size")
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
@@ -61,7 +89,7 @@ class SenderActivity : AppCompatActivity() {
                     runOnUiThread {
                         val isEnabled = state == PeerConnection.IceConnectionState.CONNECTED ||
                                 state == PeerConnection.IceConnectionState.COMPLETED
-                        binding.btnSendData.isEnabled = isEnabled
+                        //binding.btnSendData.isEnabled = isEnabled
                     }
                     log("PeerConnection.Observer:onIceConnectionChange: ${state.toString()}")
                 }
@@ -171,7 +199,8 @@ class SenderActivity : AppCompatActivity() {
             }
         }
         binding.btnSendData.setOnClickListener {
-            sendMessage("Hi, new value ${++messageCounter}")
+            pickMultipleMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+            //sendMessage("Hi, new value ${++messageCounter}")
         }
     }
 
