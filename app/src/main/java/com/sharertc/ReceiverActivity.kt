@@ -25,6 +25,9 @@ import org.webrtc.SessionDescription
 import java.nio.ByteBuffer
 
 
+/**
+ * Activity for the receiver client side
+ */
 class ReceiverActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityReceiverBinding
@@ -36,6 +39,9 @@ class ReceiverActivity : AppCompatActivity() {
     private val app get() = application as App
     private var messageCounter: Int = 0
 
+    /**
+     * Start point of the activity
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityReceiverBinding.inflate(layoutInflater)
@@ -61,8 +67,8 @@ class ReceiverActivity : AppCompatActivity() {
         peerConnection = app.peerConnectionFactory.createPeerConnection(
             app.iceServers,
             object : PeerConnection.Observer {
-                override fun onSignalingChange(p0: PeerConnection.SignalingState?) {
-                    log("PeerConnection.Observer:onSignalingChange: ${p0.toString()}")
+                override fun onSignalingChange(state: PeerConnection.SignalingState?) {
+                    log("PeerConnection.Observer:onSignalingChange: ${state.toString()}")
                 }
 
                 override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
@@ -74,13 +80,13 @@ class ReceiverActivity : AppCompatActivity() {
                     log("PeerConnection.Observer:onIceConnectionChange: ${state.toString()}")
                 }
 
-                override fun onIceConnectionReceivingChange(p0: Boolean) {
-                    log(":PeerConnection.Observer:onIceConnectionReceivingChange: $p0")
+                override fun onIceConnectionReceivingChange(receiving: Boolean) {
+                    log(":PeerConnection.Observer:onIceConnectionReceivingChange: $receiving")
                 }
 
-                override fun onIceGatheringChange(p0: PeerConnection.IceGatheringState?) {
+                override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {
                     sendAnswerSdp(peerConnection.localDescription)
-                    log("PeerConnection.Observer:onIceGatheringChange: ${p0.toString()}")
+                    log("PeerConnection.Observer:onIceGatheringChange: ${state.toString()}")
                 }
 
                 override fun onIceCandidate(iceCandidate: IceCandidate) {
@@ -90,16 +96,16 @@ class ReceiverActivity : AppCompatActivity() {
                     log("PeerConnection.Observer:onIceCandidate: $iceCandidate")
                 }
 
-                override fun onIceCandidatesRemoved(p0: Array<out IceCandidate>?) {
-                    log("PeerConnection.Observer:onIceCandidatesRemoved: ${p0.toString()}")
+                override fun onIceCandidatesRemoved(iceCandidates: Array<out IceCandidate>?) {
+                    log("PeerConnection.Observer:onIceCandidatesRemoved: ${iceCandidates.toString()}")
                 }
 
-                override fun onAddStream(p0: MediaStream?) {
-                    log("PeerConnection.Observer:onAddStream: ${p0.toString()}")
+                override fun onAddStream(stream: MediaStream?) {
+                    log("PeerConnection.Observer:onAddStream: ${stream.toString()}")
                 }
 
-                override fun onRemoveStream(p0: MediaStream?) {
-                    log("PeerConnection.Observer:onRemoveStream: ${p0.toString()}")
+                override fun onRemoveStream(stream: MediaStream?) {
+                    log("PeerConnection.Observer:onRemoveStream: ${stream.toString()}")
                 }
 
                 override fun onDataChannel(dataChannel: DataChannel) {
@@ -117,8 +123,8 @@ class ReceiverActivity : AppCompatActivity() {
     private fun observeDataChannel(dataChannel: DataChannel) {
         this.dataChannel = dataChannel
         dataChannel.registerObserver(object : DataChannel.Observer {
-            override fun onBufferedAmountChange(p0: Long) {
-                log("DataChannel.Observer:onBufferedAmountChange: $p0")
+            override fun onBufferedAmountChange(amount: Long) {
+                log("DataChannel.Observer:onBufferedAmountChange: $amount")
             }
 
             override fun onStateChange() {
@@ -179,7 +185,7 @@ class ReceiverActivity : AppCompatActivity() {
 
     private fun setRemoteSdp(offerSdp: SessionDescription) {
         peerConnection.setRemoteDescription(object : SdpObserver {
-            override fun onCreateSuccess(p0: SessionDescription?) {
+            override fun onCreateSuccess(sdp: SessionDescription?) {
             }
 
             override fun onSetSuccess() {
@@ -187,32 +193,32 @@ class ReceiverActivity : AppCompatActivity() {
                 createAnswerAndSetLocalDescription()
             }
 
-            override fun onCreateFailure(p0: String?) {
+            override fun onCreateFailure(error: String?) {
             }
 
-            override fun onSetFailure(p0: String?) {
-                log("setRemoteDescription:onSetFailure: ${p0.toString()}")
+            override fun onSetFailure(error: String?) {
+                log("setRemoteDescription:onSetFailure: ${error.toString()}")
             }
         }, offerSdp)
     }
 
-    private fun createAnswerAndSetLocalDescription() {
+    internal fun createAnswerAndSetLocalDescription() {
         peerConnection.createAnswer(object : SdpObserver {
             override fun onCreateSuccess(answerSdp: SessionDescription) {
                 log("createAnswer:onCreateSuccess")
                 peerConnection.setLocalDescription(object : SdpObserver {
-                    override fun onCreateSuccess(p0: SessionDescription?) {
+                    override fun onCreateSuccess(sdp: SessionDescription?) {
                     }
 
                     override fun onSetSuccess() {
                         log("setLocalDescription:onSetSuccess")
                     }
 
-                    override fun onCreateFailure(p0: String?) {
+                    override fun onCreateFailure(error: String?) {
                     }
 
-                    override fun onSetFailure(p0: String?) {
-                        log("setLocalDescription:onSetFailure: ${p0.toString()}")
+                    override fun onSetFailure(error: String?) {
+                        log("setLocalDescription:onSetFailure: ${error.toString()}")
                     }
                 }, answerSdp)
             }
@@ -220,16 +226,16 @@ class ReceiverActivity : AppCompatActivity() {
             override fun onSetSuccess() {
             }
 
-            override fun onCreateFailure(p0: String?) {
-                log("createAnswer:onCreateFailure: ${p0.toString()}")
+            override fun onCreateFailure(error: String?) {
+                log("createAnswer:onCreateFailure: ${error.toString()}")
             }
 
-            override fun onSetFailure(p0: String?) {
+            override fun onSetFailure(error: String?) {
             }
         }, MediaConstraints())
     }
 
-    private fun sendAnswerSdp(answerSdp: SessionDescription) = runOnUiThread {
+    internal fun sendAnswerSdp(answerSdp: SessionDescription) = runOnUiThread {
         val answerJson = JSONObject()
         answerJson.put("sdpType", answerSdp.type.canonicalForm())
         answerJson.put("sdpDescription", answerSdp.description)
@@ -286,10 +292,9 @@ class ReceiverActivity : AppCompatActivity() {
     }
 
     @SuppressLint("SetTextI18n")
-    private fun log(message: String) = runOnUiThread {
+    internal fun log(message: String) = runOnUiThread {
         Log.d(tag, message)
         binding.etLogs.text = "--$message\n${binding.etLogs.text}"
-
     }
 
     companion object {
