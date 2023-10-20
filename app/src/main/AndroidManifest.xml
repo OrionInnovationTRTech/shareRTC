@@ -14,17 +14,18 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ShareRTC"
+        android:hardwareAccelerated="true"
         tools:targetApi="31">
         <activity
-            android:name=".ReceiverActivity"
+            android:name=".ui.ReceiverActivity"
             android:label="ReceiverActivity"
             android:exported="false" />
         <activity
-            android:name=".SenderActivity"
+            android:name=".ui.SenderActivity"
             android:label="SenderActivity"
             android:exported="false" />
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

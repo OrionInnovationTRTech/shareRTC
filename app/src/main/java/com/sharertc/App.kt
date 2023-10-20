@@ -2,6 +2,7 @@ package com.sharertc
 
 import android.app.Application
 import android.graphics.Bitmap
+import com.google.gson.Gson
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
 import org.webrtc.PeerConnection
@@ -25,6 +26,10 @@ class App: Application() {
         listOf(
             PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
         )
+    }
+
+    val gson by lazy {
+        Gson()
     }
 
     override fun onCreate() {

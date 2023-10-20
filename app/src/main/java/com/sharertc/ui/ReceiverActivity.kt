@@ -1,4 +1,4 @@
-package com.sharertc
+package com.sharertc.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -10,10 +10,20 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.zxing.WriterException
 import com.google.zxing.integration.android.IntentIntegrator
 import com.google.zxing.integration.android.IntentResult
+import com.sharertc.App
 import com.sharertc.databinding.ActivityReceiverBinding
+import com.sharertc.model.FileDescription
+import com.sharertc.model.FilesInfo
+import com.sharertc.model.FilesInfoReceived
+import com.sharertc.model.ReceiveReady
+import com.sharertc.model.SendReady
+import com.sharertc.model.TransferProtocol
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.webrtc.DataChannel
 import org.webrtc.IceCandidate
@@ -37,7 +47,8 @@ class ReceiverActivity : AppCompatActivity() {
     private val REQUEST_CODE_PERMISSIONS = 101
     private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     private val app get() = application as App
-    private var messageCounter: Int = 0
+
+    private var files: List<FileDescription> = listOf()
 
     /**
      * Start point of the activity
@@ -72,11 +83,6 @@ class ReceiverActivity : AppCompatActivity() {
                 }
 
                 override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
-                    runOnUiThread {
-                        val isEnabled = state == PeerConnection.IceConnectionState.CONNECTED ||
-                                state == PeerConnection.IceConnectionState.COMPLETED
-                        binding.btnSendData.isEnabled = isEnabled
-                    }
                     log("PeerConnection.Observer:onIceConnectionChange: ${state.toString()}")
                 }
 
@@ -133,13 +139,22 @@ class ReceiverActivity : AppCompatActivity() {
             }
 
             override fun onMessage(buffer: DataChannel.Buffer) {
-                val data: ByteBuffer = buffer.data
-                val bytes = ByteArray(data.remaining())
-                data.get(bytes)
-                val message = String(bytes)
-                log("DataChannel.Observer:onMessage: $message")
+                val transferProtocol = app.gson.fromJson(Charsets.UTF_8.decode(buffer.data).toString(), TransferProtocol::class.java)
+                handleMessage(transferProtocol)
+                log("DataChannel.Observer:onMessage: $transferProtocol")
             }
         })
+    }
+
+    private fun handleMessage(data: TransferProtocol?) {
+        when(data?.type) {
+            SendReady -> sendData(TransferProtocol(ReceiveReady))
+            FilesInfo -> {
+                files = data.files
+                sendData(TransferProtocol(FilesInfoReceived))
+            }
+            else -> {}
+        }
     }
 
     private fun init() {
@@ -157,9 +172,6 @@ class ReceiverActivity : AppCompatActivity() {
             } else {
                 ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
             }
-        }
-        binding.btnSendData.setOnClickListener {
-            sendMessage("Hi, new value ${++messageCounter}")
         }
     }
 
@@ -285,14 +297,14 @@ class ReceiverActivity : AppCompatActivity() {
         }
     }
 
-    private fun sendMessage(message: String) {
-        val buffer = ByteBuffer.wrap(message.toByteArray())
+    private fun sendData(data: TransferProtocol) {
+        val buffer = ByteBuffer.wrap(app.gson.toJson(data).toByteArray(Charsets.UTF_8))
         dataChannel.send(DataChannel.Buffer(buffer, false))
-        log("sendMessage:message: $message")
+        log("sendMessage:message: $data")
     }
 
     @SuppressLint("SetTextI18n")
-    internal fun log(message: String) = runOnUiThread {
+    internal fun log(message: String) = lifecycleScope.launch(Dispatchers.Main) {
         Log.d(tag, message)
         binding.etLogs.text = "--$message\n${binding.etLogs.text}"
     }

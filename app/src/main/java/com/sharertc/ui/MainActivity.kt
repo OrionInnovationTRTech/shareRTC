@@ -1,4 +1,4 @@
-package com.sharertc
+package com.sharertc.ui
 
 import android.content.Intent
 import android.os.Bundle
