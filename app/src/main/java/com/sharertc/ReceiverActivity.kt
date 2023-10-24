@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -23,6 +24,8 @@ import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
+import java.io.ByteArrayInputStream
+import java.io.IOException
 import java.nio.ByteBuffer
 
 
@@ -32,12 +35,13 @@ class ReceiverActivity : AppCompatActivity() {
     private lateinit var peerConnection: PeerConnection
     private lateinit var dataChannel: DataChannel
 
+    lateinit var selectedImageUri:Uri
+
     private val REQUEST_CODE_PERMISSIONS = 101
     private val READ_EXTERNAL_STORAGE_PERMISSION_CODE = 1
     private val PICK_IMAGE_REQUEST = 2
     private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     private val app get() = application as App
-    private var messageCounter: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -134,6 +138,9 @@ class ReceiverActivity : AppCompatActivity() {
                 val bytes = ByteArray(data.remaining())
                 data.get(bytes)
                 val message = String(bytes)
+                //Gelen Veriyi Resim haline çevirdim.
+                val bitmap = BitmapFactory.decodeStream(ByteArrayInputStream(buffer.data.array()))
+
                 log("DataChannel.Observer:onMessage: $message")
             }
         })
@@ -143,7 +150,11 @@ class ReceiverActivity : AppCompatActivity() {
         binding.btnGenerateAnswerSdp.setOnClickListener {
             val offerSdpStr = binding.etOfferSdp.text.toString()
             if (offerSdpStr.isBlank()) {
-                Toast.makeText(this, "Öncelikle offer sdp json değerini girmelisiniz!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Öncelikle offer sdp json değerini girmelisiniz!",
+                    Toast.LENGTH_SHORT
+                ).show()
                 return@setOnClickListener
             }
             parseOfferSdp(offerSdpStr)
@@ -152,11 +163,15 @@ class ReceiverActivity : AppCompatActivity() {
             if (allPermissionsGranted()) {
                 startQRScanner()
             } else {
-                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+                ActivityCompat.requestPermissions(
+                    this,
+                    REQUIRED_PERMISSIONS,
+                    REQUEST_CODE_PERMISSIONS
+                )
             }
         }
         binding.btnSendData.setOnClickListener {
-            sendMessage("Hi, new value ${++messageCounter}")
+            sendMessage(selectedImageUri)
             initiatePickImage()
         }
     }
@@ -296,6 +311,10 @@ class ReceiverActivity : AppCompatActivity() {
         if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK) {
             val selectedImageUri: Uri? = data?.data
 
+            if (selectedImageUri != null) {
+                this.selectedImageUri = selectedImageUri
+            }
+
             // Seçilen fotoğrafın URI'sini kullanarak işlemlerinizi gerçekleştirebilirsiniz.
             // Örneğin, fotoğrafı göstermek veya kaydetmek için.
         }
@@ -314,10 +333,27 @@ class ReceiverActivity : AppCompatActivity() {
         }
     }
 
-    private fun sendMessage(message: String) {
-        val buffer = ByteBuffer.wrap(message.toByteArray())
-        dataChannel.send(DataChannel.Buffer(buffer, false))
-        log("sendMessage:message: $message")
+    private fun sendMessage(uri: Uri) {
+        val inputStream = contentResolver.openInputStream(uri)
+        val bufferSize = 1024
+        val buffer = ByteArray(bufferSize)
+        var bytesRead: Int
+
+        val dataChannelBuffer = DataChannel.Buffer(ByteBuffer.allocate(bufferSize), false)
+
+        try {
+            if (inputStream != null) {
+                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                    dataChannelBuffer.data.put(buffer, 0, bytesRead)
+                    dataChannelBuffer.data.flip()
+                    dataChannel.send(dataChannelBuffer)
+                }
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+        } finally {
+            inputStream?.close()
+        }
     }
 
     @SuppressLint("SetTextI18n")
