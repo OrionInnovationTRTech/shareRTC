@@ -53,4 +53,8 @@ class App: Application() {
         }
         return bitmap
     }
+
+    companion object {
+        const val DC_SIGNALING_LABEL = "Signaling"
+    }
 }

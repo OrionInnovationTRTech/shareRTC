@@ -2,9 +2,12 @@ package com.sharertc.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -17,6 +20,8 @@ import com.google.zxing.integration.android.IntentResult
 import com.sharertc.App
 import com.sharertc.databinding.ActivityReceiverBinding
 import com.sharertc.model.FileDescription
+import com.sharertc.model.FileTransferCompleted
+import com.sharertc.model.FileTransferStart
 import com.sharertc.model.FilesInfo
 import com.sharertc.model.FilesInfoReceived
 import com.sharertc.model.ReceiveReady
@@ -32,6 +37,7 @@ import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
+import java.io.OutputStream
 import java.nio.ByteBuffer
 
 
@@ -44,11 +50,16 @@ class ReceiverActivity : AppCompatActivity() {
     private lateinit var peerConnection: PeerConnection
     private lateinit var dataChannel: DataChannel
 
-    private val REQUEST_CODE_PERMISSIONS = 101
-    private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+    private val REQUEST_CODE_QR_PERMISSION = 101
+    private val REQUEST_CODE_FILE_PERMISSION = 102
+    private val REQUIRED_QR_PERMISSION = arrayOf(Manifest.permission.CAMERA)
+    private val REQUIRED_FILE_PERMISSION = arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE)
     private val app get() = application as App
 
     private var files: List<FileDescription> = listOf()
+    private var receivedBytes = 0
+    private var processingFile: FileDescription? = null
+    private var outputStream: OutputStream? = null
 
     /**
      * Start point of the activity
@@ -62,7 +73,7 @@ class ReceiverActivity : AppCompatActivity() {
         init()
     }
 
-    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
+    private fun allPermissionsGranted(permissions: Array<String>) = permissions.all {
         ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
     }
 
@@ -139,22 +150,68 @@ class ReceiverActivity : AppCompatActivity() {
             }
 
             override fun onMessage(buffer: DataChannel.Buffer) {
-                val transferProtocol = app.gson.fromJson(Charsets.UTF_8.decode(buffer.data).toString(), TransferProtocol::class.java)
-                handleMessage(transferProtocol)
-                log("DataChannel.Observer:onMessage: $transferProtocol")
+                if (buffer.binary) {
+                    writeToFile(buffer.data)
+                } else {
+                    val transferProtocol = app.gson.fromJson(Charsets.UTF_8.decode(buffer.data).toString(), TransferProtocol::class.java)
+                    handleMessage(transferProtocol)
+                    log("DataChannel.Observer:onMessage: $transferProtocol")
+                }
             }
         })
     }
 
     private fun handleMessage(data: TransferProtocol?) {
         when(data?.type) {
-            SendReady -> sendData(TransferProtocol(ReceiveReady))
+            SendReady -> {
+                if (allPermissionsGranted(REQUIRED_FILE_PERMISSION)) {
+                    sendMessage(TransferProtocol(ReceiveReady))
+                } else {
+                    ActivityCompat.requestPermissions(this, REQUIRED_FILE_PERMISSION, REQUEST_CODE_FILE_PERMISSION)
+                }
+            }
             FilesInfo -> {
                 files = data.files
-                sendData(TransferProtocol(FilesInfoReceived))
+                sendMessage(TransferProtocol(FilesInfoReceived))
             }
+            FileTransferStart -> openOutputStream(data.processingFile!!)
+            FileTransferCompleted -> finishFileWrite()
             else -> {}
         }
+    }
+
+    private fun openOutputStream(fileDescription: FileDescription) {
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileDescription.name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        }
+
+        val contentUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        } else {
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        }
+        contentResolver.insert(contentUri, contentValues)?.let { uri ->
+            outputStream = contentResolver.openOutputStream(uri)
+            processingFile = fileDescription
+        }
+    }
+
+    private fun writeToFile(data: ByteBuffer) {
+        val size = data.capacity()
+        val bytes = ByteArray(size)
+        data.get(bytes)
+        outputStream?.write(bytes)
+        receivedBytes += size
+        val progress: Int = ((receivedBytes * 100) / processingFile!!.size).toInt()
+    }
+
+    private fun finishFileWrite() {
+        outputStream?.close()
+        outputStream = null
+        receivedBytes = 0
+        processingFile = null
     }
 
     private fun init() {
@@ -167,10 +224,10 @@ class ReceiverActivity : AppCompatActivity() {
             parseOfferSdp(offerSdpStr)
         }
         binding.btnScanOfferSdpQr.setOnClickListener {
-            if (allPermissionsGranted()) {
+            if (allPermissionsGranted(REQUIRED_QR_PERMISSION)) {
                 startQRScanner()
             } else {
-                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+                ActivityCompat.requestPermissions(this, REQUIRED_QR_PERMISSION, REQUEST_CODE_QR_PERMISSION)
             }
         }
     }
@@ -266,16 +323,28 @@ class ReceiverActivity : AppCompatActivity() {
         requestCode: Int, permissions: Array<String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionsGranted()) {
-                startQRScanner()
-            } else {
-                Toast.makeText(
-                    this,
-                    "Kamera izni verilmedi, QR kod okuma işlemi yapılamaz.",
-                    Toast.LENGTH_SHORT
-                ).show()
-                finish()
+        when(requestCode) {
+            REQUEST_CODE_QR_PERMISSION -> {
+                if (allPermissionsGranted(REQUIRED_QR_PERMISSION)) {
+                    startQRScanner()
+                } else {
+                    Toast.makeText(
+                        this,
+                        "Kamera izni verilmedi, QR kod okuma işlemi yapılamaz.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            REQUEST_CODE_FILE_PERMISSION -> {
+                if (allPermissionsGranted(REQUIRED_FILE_PERMISSION)) {
+                    sendMessage(TransferProtocol(ReceiveReady))
+                } else {
+                    Toast.makeText(
+                        this,
+                        "Depolama izni verilmedi, dosya transferi gerçekleşemez!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
@@ -297,10 +366,10 @@ class ReceiverActivity : AppCompatActivity() {
         }
     }
 
-    private fun sendData(data: TransferProtocol) {
+    private fun sendMessage(data: TransferProtocol) {
         val buffer = ByteBuffer.wrap(app.gson.toJson(data).toByteArray(Charsets.UTF_8))
         dataChannel.send(DataChannel.Buffer(buffer, false))
-        log("sendMessage:message: $data")
+        log("sendMessage: $data")
     }
 
     @SuppressLint("SetTextI18n")

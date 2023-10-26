@@ -19,19 +19,22 @@ import com.google.zxing.WriterException
 import com.google.zxing.integration.android.IntentIntegrator
 import com.google.zxing.integration.android.IntentResult
 import com.sharertc.App
+import com.sharertc.App.Companion.DC_SIGNALING_LABEL
 import com.sharertc.databinding.ActivitySenderBinding
 import com.sharertc.model.AllTransfersCompleted
 import com.sharertc.model.FileDescription
 import com.sharertc.model.FileTransferCompleted
+import com.sharertc.model.FileTransferStart
 import com.sharertc.model.FilesInfo
 import com.sharertc.model.FilesInfoReceived
 import com.sharertc.model.ReceiveReady
 import com.sharertc.model.SendReady
-import com.sharertc.model.Transfer
 import com.sharertc.model.TransferProtocol
-import com.sharertc.model.ProcessingFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -42,7 +45,6 @@ import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
-import java.io.FileInputStream
 import java.io.IOException
 import java.nio.ByteBuffer
 
@@ -61,7 +63,10 @@ class SenderActivity : AppCompatActivity() {
     private val app get() = application as App
 
     private var files: ArrayList<FileDescription> = arrayListOf()
+    private var processingFile: FileDescription? = null
     private var uris: List<Uri> = listOf()
+
+    private val progress = MutableStateFlow(0)
 
     /**
      * Photo picker result
@@ -87,19 +92,26 @@ class SenderActivity : AppCompatActivity() {
                 this.uris = listOf()
                 Toast.makeText(this, "No media selected", Toast.LENGTH_SHORT).show()
             } else {
-                sendData(TransferProtocol(SendReady))
+                sendMessage(TransferProtocol(SendReady))
             }
         }
 
     /**
      * Start point of the activity
      */
+    @OptIn(FlowPreview::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySenderBinding.inflate(layoutInflater)
         setContentView(binding.root)
         initPeerConnection()
         init()
+
+        lifecycleScope.launch {
+            progress.debounce(1000).collect {
+                log("sendFile -> name: ${processingFile?.name} progress: %$it")
+            }
+        }
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
@@ -183,10 +195,10 @@ class SenderActivity : AppCompatActivity() {
 
     private fun createDataChannel() {
         val dcInit = DataChannel.Init()
-        dataChannel = peerConnection.createDataChannel("dc", dcInit)
+        dataChannel = peerConnection.createDataChannel(DC_SIGNALING_LABEL, dcInit)
         dataChannel.registerObserver(object : DataChannel.Observer {
             override fun onBufferedAmountChange(amount: Long) {
-                log("DataChannel.Observer:onBufferedAmountChange: $amount")
+                //log("DataChannel.Observer:onBufferedAmountChange: $amount")
             }
 
             override fun onStateChange() {
@@ -207,50 +219,36 @@ class SenderActivity : AppCompatActivity() {
 
     private fun handleMessage(data: TransferProtocol?) {
         when(data?.type) {
-            ReceiveReady -> sendData(TransferProtocol(FilesInfo, files))
+            ReceiveReady -> sendMessage(TransferProtocol(FilesInfo, files))
             FilesInfoReceived -> sendFiles()
             else -> {}
         }
     }
 
-    private fun sendFiles() = lifecycleScope.launch {
+    private fun sendFiles() = lifecycleScope.launch(Dispatchers.Default) {
         files.forEachIndexed { index, fileDescription ->
             sendFile(uris[index], fileDescription)
+            delay(300)
         }
-        sendData(TransferProtocol(AllTransfersCompleted))
+        sendMessage(TransferProtocol(AllTransfersCompleted))
     }
 
     private suspend fun sendFile(uri: Uri, fileDescription: FileDescription) {
         withContext(Dispatchers.IO) {
             try {
-                val parcelFileDescriptor = contentResolver.openFileDescriptor(uri, "r")
-                val fileChannel = FileInputStream(parcelFileDescriptor?.fileDescriptor).channel
-
-                val buffer = ByteBuffer.allocate(1024 * 8)
-
-                while (fileChannel.read(buffer) > 0) {
-                    buffer.flip()
-
-                    val bytes = Charsets.UTF_8.decode(buffer).toString()
-                    sendData(
-                        TransferProtocol(
-                            Transfer,
-                            processingFile = ProcessingFile(
-                                fileDescription,
-                                bytes
-                            )
-                        )
-                    )
-                    buffer.clear()
+                sendMessage(TransferProtocol(FileTransferStart, processingFile = fileDescription))
+                this@SenderActivity.progress.emit(0)
+                contentResolver.openInputStream(uri)?.buffered()?.use { input ->
+                    val bytes = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var totalBytesRead = 0
+                    while (input.read(bytes).also { totalBytesRead += it } >= 0) {
+                        val progress: Int = ((totalBytesRead * 100) / fileDescription.size).toInt()
+                        val buffer = DataChannel.Buffer(ByteBuffer.wrap(bytes), true)
+                        dataChannel.send(buffer)
+                        this@SenderActivity.progress.emit(progress)
+                    }
                 }
-
-                fileChannel.close()
-                parcelFileDescriptor?.close()
-
-                sendData(TransferProtocol(
-                    FileTransferCompleted,
-                    processingFile = ProcessingFile(fileDescription, "EOF")
-                ))
+                sendMessage(TransferProtocol(FileTransferCompleted, processingFile = fileDescription))
             } catch (e: IOException) {
                 e.printStackTrace()
             }
@@ -359,10 +357,10 @@ class SenderActivity : AppCompatActivity() {
         }, answerSdp)
     }
 
-    private fun sendData(data: TransferProtocol) {
+    private fun sendMessage(data: TransferProtocol) {
         val buffer = ByteBuffer.wrap(app.gson.toJson(data).toByteArray(Charsets.UTF_8))
         dataChannel.send(DataChannel.Buffer(buffer, false))
-        log("sendMessage:message: $data")
+        log("sendMessage: $data")
     }
 
     internal fun setLocalSdp(sdp: SessionDescription) {
