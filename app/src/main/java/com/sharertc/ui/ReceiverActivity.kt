@@ -13,6 +13,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.asLiveData
+import androidx.lifecycle.distinctUntilChanged
 import androidx.lifecycle.lifecycleScope
 import com.google.zxing.WriterException
 import com.google.zxing.integration.android.IntentIntegrator
@@ -28,6 +30,7 @@ import com.sharertc.model.ReceiveReady
 import com.sharertc.model.SendReady
 import com.sharertc.model.TransferProtocol
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.webrtc.DataChannel
@@ -61,6 +64,8 @@ class ReceiverActivity : AppCompatActivity() {
     private var processingFile: FileDescription? = null
     private var outputStream: OutputStream? = null
 
+    private val progress = MutableStateFlow(0)
+
     /**
      * Start point of the activity
      */
@@ -71,6 +76,12 @@ class ReceiverActivity : AppCompatActivity() {
 
         initPeerConnection()
         init()
+
+        progress.asLiveData().distinctUntilChanged().observe(this) {
+            processingFile?.name?.let { name ->
+                log("receiveFile -> name: $name progress: %$it")
+            }
+        }
     }
 
     private fun allPermissionsGranted(permissions: Array<String>) = permissions.all {
@@ -204,7 +215,12 @@ class ReceiverActivity : AppCompatActivity() {
         data.get(bytes)
         outputStream?.write(bytes)
         receivedBytes += size
-        val progress: Int = ((receivedBytes * 100) / processingFile!!.size).toInt()
+        lifecycleScope.launch(Dispatchers.Default) {
+            processingFile?.size?.let { fileSize ->
+                val progress: Int = ((receivedBytes * 100) / fileSize).toInt()
+                this@ReceiverActivity.progress.emit(progress)
+            }
+        }
     }
 
     private fun finishFileWrite() {

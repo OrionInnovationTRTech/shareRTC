@@ -14,6 +14,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.asLiveData
+import androidx.lifecycle.distinctUntilChanged
 import androidx.lifecycle.lifecycleScope
 import com.google.zxing.WriterException
 import com.google.zxing.integration.android.IntentIntegrator
@@ -31,10 +33,8 @@ import com.sharertc.model.ReceiveReady
 import com.sharertc.model.SendReady
 import com.sharertc.model.TransferProtocol
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -99,7 +99,6 @@ class SenderActivity : AppCompatActivity() {
     /**
      * Start point of the activity
      */
-    @OptIn(FlowPreview::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySenderBinding.inflate(layoutInflater)
@@ -107,9 +106,9 @@ class SenderActivity : AppCompatActivity() {
         initPeerConnection()
         init()
 
-        lifecycleScope.launch {
-            progress.debounce(1000).collect {
-                log("sendFile -> name: ${processingFile?.name} progress: %$it")
+        progress.asLiveData().distinctUntilChanged().observe(this) {
+            processingFile?.name?.let { name ->
+                log("sendFile -> name: $name progress: %$it")
             }
         }
     }
@@ -231,6 +230,7 @@ class SenderActivity : AppCompatActivity() {
             delay(300)
         }
         sendMessage(TransferProtocol(AllTransfersCompleted))
+        processingFile = null
     }
 
     private suspend fun sendFile(uri: Uri, fileDescription: FileDescription) {
@@ -238,6 +238,8 @@ class SenderActivity : AppCompatActivity() {
             try {
                 sendMessage(TransferProtocol(FileTransferStart, processingFile = fileDescription))
                 this@SenderActivity.progress.emit(0)
+                processingFile = fileDescription
+                delay(300)
                 contentResolver.openInputStream(uri)?.buffered()?.use { input ->
                     val bytes = ByteArray(DEFAULT_BUFFER_SIZE)
                     var totalBytesRead = 0
