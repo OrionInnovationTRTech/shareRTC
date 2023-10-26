@@ -206,6 +206,7 @@ class ReceiverActivity : AppCompatActivity() {
         contentResolver.insert(contentUri, contentValues)?.let { uri ->
             outputStream = contentResolver.openOutputStream(uri)
             processingFile = fileDescription
+            lifecycleScope.launch(Dispatchers.Default) { progress.emit(0) }
         }
     }
 
@@ -228,6 +229,7 @@ class ReceiverActivity : AppCompatActivity() {
         outputStream = null
         receivedBytes = 0
         processingFile = null
+        lifecycleScope.launch(Dispatchers.Default) { progress.emit(100) }
     }
 
     private fun init() {
