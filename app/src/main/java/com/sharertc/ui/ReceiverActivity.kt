@@ -5,14 +5,20 @@ import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build.VERSION.SDK_INT
+import android.os.Build.VERSION_CODES.Q
+import android.os.Build.VERSION_CODES.TIRAMISU
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.distinctUntilChanged
 import androidx.lifecycle.lifecycleScope
@@ -40,6 +46,8 @@ import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
+import java.io.File
+import java.io.FileOutputStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
 
@@ -65,6 +73,12 @@ class ReceiverActivity : AppCompatActivity() {
     private var outputStream: OutputStream? = null
 
     private val progress = MutableStateFlow(0)
+
+    private var baseDocumentTreeUri: Uri? = null
+    private val selectDocumentTree = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        baseDocumentTreeUri = uri
+        if (uri != null) sendMessage(TransferProtocol(ReceiveReady))
+    }
 
     /**
      * Start point of the activity
@@ -175,10 +189,18 @@ class ReceiverActivity : AppCompatActivity() {
     private fun handleMessage(data: TransferProtocol?) {
         when(data?.type) {
             SendReady -> {
-                if (allPermissionsGranted(REQUIRED_FILE_PERMISSION)) {
-                    sendMessage(TransferProtocol(ReceiveReady))
+                if (SDK_INT >= TIRAMISU) {
+                    if (baseDocumentTreeUri == null) {
+                        selectDocumentTree.launch(null)
+                    } else {
+                        sendMessage(TransferProtocol(ReceiveReady))
+                    }
                 } else {
-                    ActivityCompat.requestPermissions(this, REQUIRED_FILE_PERMISSION, REQUEST_CODE_FILE_PERMISSION)
+                    if (allPermissionsGranted(REQUIRED_FILE_PERMISSION)) {
+                        sendMessage(TransferProtocol(ReceiveReady))
+                    } else {
+                        ActivityCompat.requestPermissions(this, REQUIRED_FILE_PERMISSION, REQUEST_CODE_FILE_PERMISSION)
+                    }
                 }
             }
             FilesInfo -> {
@@ -192,21 +214,49 @@ class ReceiverActivity : AppCompatActivity() {
     }
 
     private fun openOutputStream(fileDescription: FileDescription) {
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, fileDescription.name)
-            put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-        }
+        when {
+            SDK_INT >= TIRAMISU -> {
+                if (baseDocumentTreeUri == null) {
+                    log("Cannot find selected directory to save files!")
+                    return
+                }
+                val directory = DocumentFile.fromTreeUri(this, baseDocumentTreeUri!!)
+                val file = directory?.createFile("application/octet-stream", fileDescription.name)
+                file?.uri?.let { uri ->
+                    outputStream = contentResolver.openOutputStream(uri)
+                }
+            }
+            SDK_INT >= Q -> {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileDescription.name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                }
 
-        val contentUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            MediaStore.Downloads.EXTERNAL_CONTENT_URI
-        } else {
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                val contentUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+                val uriData = contentResolver.insert(contentUri, contentValues)
+                uriData?.let { uri ->
+                    outputStream = contentResolver.openOutputStream(uri)
+                }
+            }
+            else -> {
+                val downloadsDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!downloadsDirectory.exists()) downloadsDirectory.mkdirs()
+
+                val file = File(downloadsDirectory, fileDescription.name)
+
+                try {
+                    outputStream = FileOutputStream(file)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
-        contentResolver.insert(contentUri, contentValues)?.let { uri ->
-            outputStream = contentResolver.openOutputStream(uri)
+        if (outputStream != null) {
             processingFile = fileDescription
             lifecycleScope.launch(Dispatchers.Default) { progress.emit(0) }
+        } else {
+            log("outputStream is null!")
         }
     }
 

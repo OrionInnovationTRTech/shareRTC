@@ -75,9 +75,6 @@ class SenderActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
             this.uris = uris
             uris.forEach { uri ->
-                val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
-                contentResolver.takePersistableUriPermission(uri, flag)
-
                 contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                     val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                     val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
