@@ -123,7 +123,7 @@ class ReceiverActivity : AppCompatActivity() {
                 }
 
                 override fun onIceConnectionReceivingChange(receiving: Boolean) {
-                    log(":PeerConnection.Observer:onIceConnectionReceivingChange: $receiving")
+                    log("PeerConnection.Observer:onIceConnectionReceivingChange: $receiving")
                 }
 
                 override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {
@@ -162,29 +162,6 @@ class ReceiverActivity : AppCompatActivity() {
         ) ?: return
     }
 
-    private fun observeDataChannel(dataChannel: DataChannel) {
-        this.dataChannel = dataChannel
-        dataChannel.registerObserver(object : DataChannel.Observer {
-            override fun onBufferedAmountChange(amount: Long) {
-                log("DataChannel.Observer:onBufferedAmountChange: $amount")
-            }
-
-            override fun onStateChange() {
-                val state = dataChannel.state()
-                log("DataChannel.Observer:onStateChange -> state: $state")
-            }
-
-            override fun onMessage(buffer: DataChannel.Buffer) {
-                if (buffer.binary) {
-                    writeToFile(buffer.data)
-                } else {
-                    val transferProtocol = app.gson.fromJson(Charsets.UTF_8.decode(buffer.data).toString(), TransferProtocol::class.java)
-                    handleMessage(transferProtocol)
-                    log("DataChannel.Observer:onMessage: $transferProtocol")
-                }
-            }
-        })
-    }
 
     private fun handleMessage(data: TransferProtocol?) {
         when(data?.type) {

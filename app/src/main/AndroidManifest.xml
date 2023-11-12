@@ -24,7 +24,7 @@
             android:label="ReceiverActivity"
             android:exported="false" />
         <activity
-            android:name=".ui.SenderActivity"
+            android:name=".ui.sender.SenderActivity"
             android:label="SenderActivity"
             android:exported="false" />
         <activity
