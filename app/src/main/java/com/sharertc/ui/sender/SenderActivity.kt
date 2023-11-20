@@ -1,7 +1,7 @@
 package com.sharertc.ui.sender
 
 import android.Manifest
-import android.content.Intent
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -9,18 +9,22 @@ import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.zxing.WriterException
-import com.google.zxing.integration.android.IntentIntegrator
-import com.google.zxing.integration.android.IntentResult
-import com.sharertc.App
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.sharertc.databinding.ActivitySenderBinding
 import com.sharertc.model.FileDescription
 import com.sharertc.model.SendReady
 import com.sharertc.model.TransferProtocol
 import com.sharertc.util.generateQRCode
+import kotlinx.coroutines.launch
+import org.webrtc.DataChannel
 
 
 /**
@@ -33,9 +37,24 @@ class SenderActivity : AppCompatActivity() {
         ViewModelProvider(this)[SenderViewModel::class.java]
     }
 
-    private val REQUEST_CODE_PERMISSIONS = 101
-    private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-    private val app get() = application as App
+    private val cameraContract = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (it) {
+            startQRScanner()
+        } else {
+            Toast.makeText(
+                this,
+                "Kamera izni verilmedi, QR kod okuma işlemi yapılamaz.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private val qrScanContract = registerForActivityResult(ScanContract()) {
+        if (it.contents != null) {
+            val qrResult = it.contents
+            binding.etAnswerSdp.setText(qrResult)
+        }
+    }
 
     /**
      * Photo picker result
@@ -73,8 +92,11 @@ class SenderActivity : AppCompatActivity() {
         setObservers()
     }
 
-    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
-        ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+    private fun isCameraPermissionGranted(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun init() {
@@ -87,10 +109,10 @@ class SenderActivity : AppCompatActivity() {
             viewModel.parseAnswerSdp(answerSdpStr)
         }
         binding.btnScanAnswerSdpQr.setOnClickListener {
-            if (allPermissionsGranted()) {
+            if (isCameraPermissionGranted()) {
                 startQRScanner()
             } else {
-                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+                cameraContract.launch(Manifest.permission.CAMERA)
             }
         }
         binding.btnSendData.setOnClickListener {
@@ -98,60 +120,43 @@ class SenderActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun setObservers() {
-        viewModel.qrStr.observe(this) { qRCodeData ->
-            binding.tvOfferSdpJson.text = qRCodeData
-
-            try {
-                val bitmap = generateQRCode(qRCodeData)
-                binding.ivOfferSdpQr.setImageBitmap(bitmap)
-            } catch (e: WriterException) {
-                e.printStackTrace()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.logs.collect {
+                    val text = binding.etLogs.text?.toString() ?: ""
+                    binding.etLogs.text = "$text-$it\n"
+                }
             }
+        }
+        viewModel.qrStr.observe(this) { qRCodeData ->
+            showOfferSdp(qRCodeData)
+        }
+        viewModel.dcState.observe(this) {
+            binding.btnSendData.isVisible = it == DataChannel.State.OPEN
+        }
+        viewModel.progress.observe(this) {
+        }
+    }
+
+    private fun showOfferSdp(offerSdp: String) {
+        binding.tvOfferSdpJson.text = offerSdp
+
+        try {
+            val bitmap = generateQRCode(offerSdp)
+            binding.ivOfferSdpQr.setImageBitmap(bitmap)
+        } catch (e: WriterException) {
+            e.printStackTrace()
         }
     }
 
     private fun startQRScanner() {
-        val integrator = IntentIntegrator(this)
-        integrator.setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
-        integrator.setPrompt("Scan Answer Sdp QR")
-        integrator.setCameraId(0)
-        integrator.initiateScan()
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<String>, grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionsGranted()) {
-                startQRScanner()
-            } else {
-                Toast.makeText(
-                    this,
-                    "Kamera izni verilmedi, QR kod okuma işlemi yapılamaz.",
-                    Toast.LENGTH_SHORT
-                ).show()
-                finish()
-            }
-        }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        val result: IntentResult? =
-            IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
-        if (result != null) {
-            if (result.contents == null) {
-                Toast.makeText(this, "QR kod bulunamadı", Toast.LENGTH_SHORT).show()
-            } else {
-                //Toast.makeText(this, "QR Kod: ${result.contents}", Toast.LENGTH_SHORT).show()
-                val qrResult = result.contents
-                binding.etAnswerSdp.setText(qrResult)
-            }
-        } else {
-            super.onActivityResult(requestCode, resultCode, data)
-        }
+        val options = ScanOptions()
+        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+        options.setPrompt("Scan Answer Sdp QR")
+        options.setCameraId(0)
+        qrScanContract.launch(options)
     }
 
 }

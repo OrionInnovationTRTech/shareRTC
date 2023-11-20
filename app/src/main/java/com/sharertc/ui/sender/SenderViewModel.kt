@@ -15,15 +15,13 @@ import com.sharertc.model.FilesInfo
 import com.sharertc.model.FilesInfoReceived
 import com.sharertc.model.ReceiveReady
 import com.sharertc.model.TransferProtocol
-import com.sharertc.util.PeerConnectionManager
-import com.sharertc.util.PeerConnectionSide
+import com.sharertc.util.SenderPCM
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import org.webrtc.DataChannel
 import java.io.IOException
 import java.nio.ByteBuffer
@@ -31,7 +29,7 @@ import java.nio.ByteBuffer
 class SenderViewModel(application: Application): AndroidViewModel(application) {
 
     private val app = application as App
-    private val pcm = PeerConnectionManager(app, PeerConnectionSide.SENDER)
+    private val pcm = SenderPCM(app)
 
     var files: ArrayList<FileDescription> = arrayListOf()
     private var processingFile: FileDescription? = null
@@ -40,12 +38,9 @@ class SenderViewModel(application: Application): AndroidViewModel(application) {
     private val _progress = MutableStateFlow(0)
     val progress: LiveData<Int> = _progress.asLiveData(viewModelScope.coroutineContext)
 
-    val qrStr: LiveData<String> = pcm.sdpToQR.map { sdp ->
-        val json = JSONObject()
-        json.put("sdpType", sdp.type.canonicalForm())
-        json.put("sdpDescription", sdp.description)
-        json.toString()
-    }.asLiveData(viewModelScope.coroutineContext)
+    val qrStr: LiveData<String> = pcm.qrStr.asLiveData(viewModelScope.coroutineContext)
+    val dcState: LiveData<DataChannel.State> = pcm.dcState.asLiveData(viewModelScope.coroutineContext)
+    val logs: Flow<String> = pcm.logs
 
     init {
         viewModelScope.launch {
