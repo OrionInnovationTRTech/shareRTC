@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ReceiverActivity"
+    tools:context=".ui.receiver.ReceiverActivity"
     android:padding="16dp">
 
     <LinearLayout
@@ -58,14 +58,6 @@
             android:layout_height="wrap_content"
             android:textIsSelectable="true"
             android:selectAllOnFocus="true" />
-
-        <Button
-            android:id="@+id/btnSendData"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Send Data"
-            android:enabled="false"
-            android:layout_marginBottom="8dp"/>
 
         <TextView
             android:layout_width="match_parent"

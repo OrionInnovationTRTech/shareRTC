@@ -1,9 +1,11 @@
-package com.sharertc
+package com.sharertc.ui
 
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.sharertc.databinding.ActivityMainBinding
+import com.sharertc.ui.receiver.ReceiverActivity
+import com.sharertc.ui.sender.SenderActivity
 
 
 class MainActivity : AppCompatActivity() {
