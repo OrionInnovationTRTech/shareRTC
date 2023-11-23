@@ -106,9 +106,14 @@ class ReceiverActivity : AppCompatActivity() {
                 viewModel.documentTreeLauncher.collect {
                     selectDocumentTree.launch(null)
                 }
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.logs.collect {
                     val text = binding.etLogs.text?.toString() ?: ""
-                    binding.etLogs.text = "$text-$it\n"
+                    binding.etLogs.text = "-$it\n$text"
                 }
             }
         }

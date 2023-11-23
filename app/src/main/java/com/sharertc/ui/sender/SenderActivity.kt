@@ -25,6 +25,7 @@ import com.sharertc.model.TransferProtocol
 import com.sharertc.util.generateQRCode
 import kotlinx.coroutines.launch
 import org.webrtc.DataChannel
+import org.webrtc.PeerConnection
 
 
 /**
@@ -75,7 +76,6 @@ class SenderActivity : AppCompatActivity() {
             if (uris.isEmpty()) {
                 viewModel.files.clear()
                 viewModel.uris = listOf()
-                Toast.makeText(this, "No media selected", Toast.LENGTH_SHORT).show()
             } else {
                 viewModel.sendMessage(TransferProtocol(SendReady))
             }
@@ -126,15 +126,21 @@ class SenderActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.logs.collect {
                     val text = binding.etLogs.text?.toString() ?: ""
-                    binding.etLogs.text = "$text-$it\n"
+                    binding.etLogs.text = "-$it\n$text"
                 }
             }
         }
         viewModel.qrStr.observe(this) { qRCodeData ->
             showOfferSdp(qRCodeData)
         }
+        viewModel.pcState.observe(this) {
+            if (it == PeerConnection.IceConnectionState.DISCONNECTED) {
+                binding.btnSendData.isVisible = false
+            }
+        }
         viewModel.dcState.observe(this) {
             binding.btnSendData.isVisible = it == DataChannel.State.OPEN
+            binding.btnStartConnection.isVisible = it != DataChannel.State.OPEN
         }
         viewModel.progress.observe(this) {
         }

@@ -60,6 +60,9 @@ abstract class PeerConnectionManager(
     protected val _messages = MutableSharedFlow<TransferProtocol>()
     val messages: Flow<TransferProtocol> = _messages
 
+    protected val _pcState = MutableStateFlow(PeerConnection.IceConnectionState.NEW)
+    val pcState: Flow<PeerConnection.IceConnectionState> = _pcState
+
     protected val _dcState = MutableStateFlow(DataChannel.State.CLOSED)
     val dcState: Flow<DataChannel.State> = _dcState
 

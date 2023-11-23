@@ -18,8 +18,11 @@ class SenderPCM(context: Context) : PeerConnectionManager(context) {
             log("PeerConnection.Observer:onSignalingChange: ${state.toString()}")
         }
 
-        override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
-            log("PeerConnection.Observer:onIceConnectionChange: ${state.toString()}")
+        override fun onIceConnectionChange(state: PeerConnection.IceConnectionState) {
+            log("PeerConnection.Observer:onIceConnectionChange: $state")
+            scope.launch {
+                _pcState.emit(state)
+            }
         }
 
         override fun onIceConnectionReceivingChange(receiving: Boolean) {

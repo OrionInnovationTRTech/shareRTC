@@ -20,9 +20,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.webrtc.DataChannel
+import org.webrtc.PeerConnection
 import java.io.IOException
 import java.nio.ByteBuffer
 
@@ -36,9 +38,12 @@ class SenderViewModel(application: Application): AndroidViewModel(application) {
     var uris: List<Uri> = listOf()
 
     private val _progress = MutableStateFlow(0)
-    val progress: LiveData<Int> = _progress.asLiveData(viewModelScope.coroutineContext)
+    val progress: LiveData<Int> = _progress.map {
+        it.coerceAtLeast(0).coerceAtMost(100)
+    }.asLiveData(viewModelScope.coroutineContext)
 
     val qrStr: LiveData<String> = pcm.qrStr.asLiveData(viewModelScope.coroutineContext)
+    val pcState: LiveData<PeerConnection.IceConnectionState> = pcm.pcState.asLiveData(viewModelScope.coroutineContext)
     val dcState: LiveData<DataChannel.State> = pcm.dcState.asLiveData(viewModelScope.coroutineContext)
     val logs: Flow<String> = pcm.logs
 
