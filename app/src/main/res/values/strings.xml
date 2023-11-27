@@ -1,3 +1,18 @@
 <resources>
     <string name="app_name">ShareRTC</string>
+    <string name="camera_permission_warning">Camera permission is not granted, QR code reading cannot be done.</string>
+    <string name="scan_offer_qr_prompt">Scan Offer Sdp QR</string>
+    <string name="scan_answer_qr_prompt">Scan Answer Sdp QR</string>
+    <string name="offer_sdp_json_empty">Offer sdp json value is empty!</string>
+    <string name="answer_sdp_json_empty">Answer sdp json value is empty!</string>
+    <string name="button_sender">Sender</string>
+    <string name="button_receiver">Receiver</string>
+    <string name="button_scan_answer">Scan Answer Sdp QR</string>
+    <string name="hint_answer_sdp">Answer Sdp Json Data</string>
+    <string name="button_start_connection">Start Connection</string>
+    <string name="button_send_data">Send Data</string>
+    <string name="title_logs">logs</string>
+    <string name="button_scan_offer">Scan Offer Sdp QR</string>
+    <string name="hint_offer_sdp">Offer Sdp Json Data</string>
+    <string name="button_generate_answer">Generate Answer Sdp</string>
 </resources>

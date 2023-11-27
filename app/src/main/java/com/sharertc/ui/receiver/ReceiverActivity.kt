@@ -15,6 +15,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.google.zxing.WriterException
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import com.sharertc.R
 import com.sharertc.databinding.ActivityReceiverBinding
 import com.sharertc.model.ReceiveReady
 import com.sharertc.model.TransferProtocol
@@ -43,7 +44,7 @@ class ReceiverActivity : AppCompatActivity() {
         } else {
             Toast.makeText(
                 this,
-                "Kamera izni verilmedi, QR kod okuma işlemi yapılamaz.",
+                R.string.camera_permission_warning,
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -76,7 +77,7 @@ class ReceiverActivity : AppCompatActivity() {
     private fun startQRScanner() {
         val options = ScanOptions()
         options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-        options.setPrompt("Scan Offer Sdp QR")
+        options.setPrompt(getString(R.string.scan_offer_qr_prompt))
         options.setCameraId(0)
         qrScanContract.launch(options)
     }
@@ -85,7 +86,7 @@ class ReceiverActivity : AppCompatActivity() {
         binding.btnGenerateAnswerSdp.setOnClickListener {
             val offerSdpStr = binding.etOfferSdp.text.toString()
             if (offerSdpStr.isBlank()) {
-                Toast.makeText(this, "Öncelikle offer sdp json değerini girmelisiniz!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.offer_sdp_json_empty, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             viewModel.parseOfferSdp(offerSdpStr)
