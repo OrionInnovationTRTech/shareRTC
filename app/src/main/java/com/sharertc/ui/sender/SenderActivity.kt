@@ -64,6 +64,7 @@ class SenderActivity : AppCompatActivity() {
     private val pickMultipleMedia =
         registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
             viewModel.uris = uris
+            viewModel.files.clear()
             uris.forEach { uri ->
                 contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                     val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
@@ -74,10 +75,7 @@ class SenderActivity : AppCompatActivity() {
                     viewModel.files.add(FileDescription(name, size))
                 }
             }
-            if (uris.isEmpty()) {
-                viewModel.files.clear()
-                viewModel.uris = listOf()
-            } else {
+            if (uris.isNotEmpty()) {
                 viewModel.sendMessage(TransferProtocol(SendReady))
             }
         }

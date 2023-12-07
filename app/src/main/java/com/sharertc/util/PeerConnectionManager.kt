@@ -101,7 +101,7 @@ abstract class PeerConnectionManager(
     }
 
     protected fun setRemoteSdp(
-        answerSdp: SessionDescription,
+        sdp: SessionDescription,
         onSuccess: (() -> Unit)? = null,
         onFailure: (() -> Unit)? = null
     ) {
@@ -121,7 +121,7 @@ abstract class PeerConnectionManager(
                 log("setRemoteDescription:onSetFailure: ${error.toString()}")
                 onFailure?.invoke()
             }
-        }, answerSdp)
+        }, sdp)
     }
 
     fun toSdp(sdpStr: String): SessionDescription? {
