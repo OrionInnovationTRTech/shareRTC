@@ -1,78 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".ui.sender.SenderActivity"
     android:padding="16dp">
-   
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
 
-        <ImageView
-            android:id="@+id/ivOfferSdpQr"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            tools:srcCompat="@tools:sample/avatars"
-            tools:ignore="ContentDescription" />
-
-        <TextView
-            android:id="@+id/tvOfferSdpJson"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textIsSelectable="true"
-            android:selectAllOnFocus="true" />
-
-        <Button
-            android:id="@+id/btnScanAnswerSdpQr"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/button_scan_answer" />
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/tilAnswerSdp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/hint_answer_sdp"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="8dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etAnswerSdp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:lines="10" />
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <Button
-            android:id="@+id/btnStartConnection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/button_start_connection"
-            android:layout_marginBottom="8dp"/>
-
-        <Button
-            android:id="@+id/btnSendData"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/button_send_data"
-            android:layout_marginBottom="8dp"/>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/title_logs"
-            android:layout_marginBottom="16dp"/>
-
-        <TextView
-            android:id="@+id/etLogs"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-    </LinearLayout>
-
-</androidx.core.widget.NestedScrollView>
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragmentContainerView"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:defaultNavHost="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:navGraph="@navigation/sender_activity_nav" />
+</androidx.constraintlayout.widget.ConstraintLayout>
