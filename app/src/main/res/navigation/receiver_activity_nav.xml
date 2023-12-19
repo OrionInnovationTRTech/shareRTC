@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/receiver_activity_nav"
+    app:startDestination="@id/receiverScanAnswerQR">
+
+    <fragment
+        android:id="@+id/receiverScanAnswerQR"
+        android:name="com.sharertc.ui.receiver.ReceiverScanAnswerQR"
+        android:label="fragment_receiver_scan_answer_q_r"
+        tools:layout="@layout/fragment_receiver_scan_answer_q_r" >
+        <action
+            android:id="@+id/action_receiverScanAnswerQR_to_receiverGenerateQR"
+            app:destination="@id/receiverGenerateQR" />
+    </fragment>
+    <fragment
+        android:id="@+id/receiverGenerateQR"
+        android:name="com.sharertc.ui.receiver.ReceiverGenerateQR"
+        android:label="fragment_receiver_generate_q_r"
+        tools:layout="@layout/fragment_receiver_generate_q_r" />
+</navigation>
