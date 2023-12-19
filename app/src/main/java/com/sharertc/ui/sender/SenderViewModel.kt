@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.sharertc.App
@@ -34,8 +35,14 @@ class SenderViewModel(application: Application): AndroidViewModel(application) {
     private val pcm = SenderPCM(app)
 
     var files: ArrayList<FileDescription> = arrayListOf()
-    private var processingFile: FileDescription? = null
+    var processingFile: FileDescription? = null
     var uris: List<Uri> = listOf()
+    var sendInfo : Boolean = false
+
+   fun handleSendInfo (newSendInfo:Boolean){
+       sendInfo = newSendInfo
+   }
+
 
     private val _progress = MutableStateFlow(0)
     val progress: LiveData<Int> = _progress.map {
@@ -46,6 +53,7 @@ class SenderViewModel(application: Application): AndroidViewModel(application) {
     val pcState: LiveData<PeerConnection.IceConnectionState> = pcm.pcState.asLiveData(viewModelScope.coroutineContext)
     val dcState: LiveData<DataChannel.State> = pcm.dcState.asLiveData(viewModelScope.coroutineContext)
     val logs: Flow<String> = pcm.logs
+
 
     init {
         viewModelScope.launch {
@@ -63,6 +71,7 @@ class SenderViewModel(application: Application): AndroidViewModel(application) {
         when(data?.type) {
             ReceiveReady -> sendMessage(TransferProtocol(FilesInfo, files))
             FilesInfoReceived -> sendFiles()
+
             else -> {}
         }
     }
@@ -72,8 +81,11 @@ class SenderViewModel(application: Application): AndroidViewModel(application) {
             sendFile(uris[index], fileDescription)
             delay(300)
         }
+        handleSendInfo(true)
         sendMessage(TransferProtocol(AllTransfersCompleted))
         processingFile = null
+
+
     }
 
     private suspend fun sendFile(uri: Uri, fileDescription: FileDescription) {
@@ -93,7 +105,10 @@ class SenderViewModel(application: Application): AndroidViewModel(application) {
                         _progress.emit(progress)
                     }
                 }
+                handleSendInfo(true)
                 sendMessage(TransferProtocol(FileTransferCompleted, processingFile = fileDescription))
+
+
             } catch (e: IOException) {
                 e.printStackTrace()
             }
