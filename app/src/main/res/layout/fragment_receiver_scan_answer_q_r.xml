@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.receiver.ReceiverScanAnswerQR">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/btnScanOfferSdpQr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/button_scan_answer"/>
+
+        <Button
+            android:id="@+id/btnGenerateAnswerSdp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/button_generate_answer"
+            android:layout_marginTop="8dp" />
+
+
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/title_logs"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:id="@+id/etLogs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+
+</FrameLayout>
