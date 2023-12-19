@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/navigation"
+    app:startDestination="@id/senderQR">
+
+    <fragment
+        android:id="@+id/senderQR"
+        android:name="com.sharertc.ui.sender.SenderQR"
+        android:label="fragment_sender_q_r"
+        tools:layout="@layout/fragment_sender_q_r" >
+        <action
+            android:id="@+id/action_senderQR_to_senderSendData"
+            app:destination="@id/senderSendData" />
+    </fragment>
+    <fragment
+        android:id="@+id/senderSendData"
+        android:name="com.sharertc.ui.sender.SenderSendData"
+        android:label="fragment_sender_send_data"
+        tools:layout="@layout/fragment_sender_send_data" >
+        <action
+            android:id="@+id/action_senderSendData_to_completed"
+            app:destination="@id/completed" />
+        <action
+            android:id="@+id/action_senderSendData_to_notCompleted"
+            app:destination="@id/notCompleted" />
+    </fragment>
+    <fragment
+        android:id="@+id/completed"
+        android:name="com.sharertc.ui.sender.Completed"
+        android:label="fragment_completed"
+        tools:layout="@layout/fragment_completed" />
+    <fragment
+        android:id="@+id/notCompleted"
+        android:name="com.sharertc.ui.sender.NotCompleted"
+        android:label="fragment_not_completed"
+        tools:layout="@layout/fragment_not_completed" />
+</navigation>
