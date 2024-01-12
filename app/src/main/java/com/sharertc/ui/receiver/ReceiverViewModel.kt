@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.sharertc.App
@@ -21,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.OutputStream
@@ -40,18 +42,25 @@ class ReceiverViewModel(application: Application): AndroidViewModel(application)
     private val _progress = MutableStateFlow(0)
     val progress: LiveData<Int> = _progress.map {
         it.coerceAtLeast(0).coerceAtMost(100)
-    }.asLiveData(viewModelScope.coroutineContext)
+    }.asLiveData()
 
     private val _documentTreeLauncher = MutableSharedFlow<Unit>()
     val documentTreeLauncher: Flow<Unit> = _documentTreeLauncher
 
-    val qrStr: LiveData<String> = pcm.qrStr.asLiveData(viewModelScope.coroutineContext)
+    val _qrStr = MutableLiveData<String>()
+    val qrStr: LiveData<String> = _qrStr
+
     val logs: Flow<String> = pcm.logs
 
     init {
         viewModelScope.launch {
             pcm.messages.collect {
                 handleMessage(it)
+            }
+        }
+        viewModelScope.launch {
+            pcm.qrStr.collect {
+                _qrStr.value = it
             }
         }
     }

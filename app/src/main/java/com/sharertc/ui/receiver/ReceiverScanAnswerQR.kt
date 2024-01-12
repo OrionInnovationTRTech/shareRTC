@@ -35,7 +35,7 @@ class ReceiverScanAnswerQR : Fragment() {
     }
 
     private var qrResult: String = ""
-    fun handleQrResult(newQrResult: String) {
+    private fun handleQrResult(newQrResult: String) {
         qrResult = newQrResult
     }
 
@@ -55,6 +55,7 @@ class ReceiverScanAnswerQR : Fragment() {
     private val qrScanContract = registerForActivityResult(ScanContract()) {
         it.contents?.let { qrResult ->
             handleQrResult(qrResult)
+            viewModel.parseOfferSdp(qrResult)
             Log.d("deneme1",qrResult)
             visible()
         }
@@ -95,14 +96,12 @@ fun visible(){
 
     private fun init() {
         binding.btnGenerateAnswerSdp.setOnClickListener {
-
             val offerSdpStr = qrResult
             Log.d("deneme2",offerSdpStr)
 
             if (offerSdpStr.isBlank()) {
                 return@setOnClickListener
             }
-            viewModel.parseOfferSdp(offerSdpStr)
             Navigation.findNavController(it).navigate(R.id.action_receiverScanAnswerQR_to_receiverGenerateQR)
         }
 
